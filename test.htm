@@ -1,0 +1,532 @@
+﻿<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <title></title>
+    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+    <script src="commonTool.js" type="text/javascript"></script>
+    <style type="text/css">
+        body {
+            background: white;
+        }
+
+        * {
+            font-family: Microsoft YaHei;
+            font-size: 12px;
+            margin: 0px;
+            padding: 0px;
+        }
+
+        #tbLeft tr td,
+        #tbContainer tr td {
+            cursor: none;
+            border-right: 1px #000 solid;
+            border-top: 1px #000 solid;
+            vertical-align: bottom;
+            width: 12.5%;
+        }
+
+        #tbPanel,
+        #tbLeft,
+        #tbContainer {
+            background: #FFFFFF;
+            width: 100%;
+        }
+
+        #tbLeft tr,
+        #tbContainer tr {
+            height: 40px;
+        }
+
+        #tbPanel tr td {
+            min-width: 30px;
+        }
+
+        #tbPanel tr td span {
+            border: 0.5px solid #eee;
+        }
+    </style>
+    <script type="text/javascript">
+
+
+        var myTable =
+        {
+            getData: function (type) {
+
+                $("#date").val(getDateFormatStr(new Date()));
+                //增加测试数据
+                var data = [];
+                data.push({ time: new Date().getTime() - 13 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() - 10 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() - 8 * 3600 * 1000, status: 1 });
+                data.push({ time: new Date().getTime() - 7 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() - 6 * 3600 * 1000, status: 1 });
+                data.push({ time: new Date().getTime() - 5 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() - 3 * 3600 * 1000, status: 1 });
+                data.push({ time: new Date().getTime() + 1 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() + 2 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() + 3 * 3600 * 1000, status: 0 });
+                data.push({ time: new Date().getTime() + 4 * 3600 * 1000, status: 0 });
+                myTable.init({ "data": data, title: "开关量状态变化分布矩形图" })
+            },
+            init: function (data) {
+                this.data = data;
+                $("#title").html(data.title);
+                // var data1 = []; //0-7   小时内的时间数据
+                // var data2 = [];  //8-15   小时内的时间数据
+                // var data3 = [];  //16-23  小时内的时间数据
+                var date = $("#date").val();
+                var oldTime = this.getDate(date, 0);
+                var oldTime8h = this.getDate(date, 8);
+                var oldTime16h = this.getDate(date, 16);
+
+
+                //8小时的时间长度
+                var totalTimes = 1000 * 3600 * 8; //转化成毫秒              
+                var totalWidth = document.getElementById("tbContainer").offsetWidth - 1;
+
+
+                //清除元素
+                var tLine1 = document.getElementById("timeLine1");
+                var tLine2 = document.getElementById("timeLine2");
+                var tLine3 = document.getElementById("timeLine3");
+
+                myTable.removeAllChilden(tLine1);
+                myTable.removeAllChilden(tLine2);
+                myTable.removeAllChilden(tLine3);
+
+                var oldStatus = data.beforeStatus;
+
+                //时间根据八个小时进行分割汇总
+                for (var i = 0; i < data.data.length; i++) {
+                    var dataTmp = data.data[i];
+                    var time = new Date(dataTmp.time);
+                    var value = dataTmp.status;
+                    //创建span 标签
+                    var color = this.getColorByStatus(oldStatus);
+                    
+                    if (time.getHours() >= 0 && time.getHours() <= 7) {
+                        var width = this.getWidthByTimeDiff(oldTime, time, totalTimes, totalWidth);
+                        tLine1.appendChild(this.createSpan(width, color));
+
+                    }
+                    else if (time.getHours() >= 8 && time.getHours() <= 15) {
+                        if (oldTime.getHours() < 8) {
+                            //第一个时间范围
+                            var width = this.getWidthByTimeDiff(oldTime, oldTime8h, totalTimes, totalWidth);
+                            tLine1.appendChild(this.createSpan(width, color));
+                            //第二个时间范围
+                            width = this.getWidthByTimeDiff(oldTime8h, time, totalTimes, totalWidth);
+                            tLine2.appendChild(this.createSpan(width, color));
+
+                        }
+                        else {
+                            var width = this.getWidthByTimeDiff(oldTime, time, totalTimes, totalWidth);;
+                            tLine2.appendChild(this.createSpan(width, color));
+                        }
+
+                    }
+                    else if (time.getHours() >= 16 && time.getHours() <= 23) {
+                        //三种情况如果 oldTime 1) 即上一个时间点在 第一个8小时范围 
+                        if (oldTime.getHours() < 8) {
+
+                            var width = this.getWidthByTimeDiff(oldTime, oldTime8h, totalTimes, totalWidth);
+                            tLine1.appendChild(this.createSpan(width, color));
+
+                            //第二个时间范围
+                            tLine2.appendChild(this.createSpan(totalWidth, color));
+
+                            //第三个时间 
+                            width = this.getWidthByTimeDiff(oldTime16h, time, totalTimes, totalWidth);
+                            tLine3.appendChild(this.createSpan(width, color));
+
+
+
+                        }
+                        else if (oldTime.getHours() >= 8 && oldTime.getHours() < 16) {
+                            //第一个时间范围
+                            var width = this.getWidthByTimeDiff(oldTime, oldTime16h, totalTimes, totalWidth);
+                            tLine2.appendChild(this.createSpan(width, color));
+
+                            //第二个时间范围
+                            width = this.getWidthByTimeDiff(oldTime16h, time, totalTimes, totalWidth);
+                            tLine3.appendChild(this.createSpan(width, color));
+
+                        }
+                        else {
+                            width = this.getWidthByTimeDiff(oldTime, time, totalTimes, totalWidth);
+                            tLine3.appendChild(this.createSpan(width, color));
+                        }
+                    }
+                    oldTime = new Date(time);
+                    oldStatus = value;
+                }
+                timeLine1.style.display = "";
+                timeLine2.style.display = "";
+                timeLine3.style.display = "";
+
+
+                //给document 添加鼠标事件
+                document.onmousemove = myTable.onmousemove;
+
+            },
+            getColorByStatus: function (status) {
+                if (status == 0) {
+                    return "Red";
+                }
+                else if (status == 1) {
+                    return "Green";
+                }
+                else if (status == 2) {
+                    return "Gray";
+                }
+            },
+            getWidthByTimeDiff: function (time1, time2, totalTimes, totalWidth) {
+                var timeDiff = time2.getTime() - time1.getTime();
+                var width = timeDiff / totalTimes * totalWidth;
+                return width;
+            },
+            createSpan: function (width, backgroudColor) {
+                var span = document.createElement("div");
+                span.style.height = "15px";
+                span.style.width = width + "px";
+                span.style.backgroundColor = backgroudColor;
+                span.style.float = "left";
+
+                return span;
+
+            },
+            getDate: function (date, HH) {
+                var curDate = new Date(date);
+                var oldTime = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate(), HH, 0, 0);
+                return oldTime;
+            },
+            getTimeByPosition: function (x, containerLeft) {
+                var totalWidth = document.getElementById("tbContainer").offsetWidth;
+                var date = $("#date").val();
+                var totalTimes = 1000 * 3600 * 8; //转化成毫秒
+                var militsecends = (x - containerLeft) / totalWidth * totalTimes;
+                return militsecends;
+            },
+            onmousemove: function (e) {
+                e = e || window.event;
+                var tbLeft = tbContainer.getBoundingClientRect().left;
+                var diff = e.clientX - tbLeft;
+                var totalWidth = document.getElementById("tbContainer").offsetWidth;
+                var sp = document.getElementById("split");
+                ! +"\v1" ? document.selection.empty() : window.getSelection().removeAllRanges();
+                if (diff < 0 && diff > totalWidth) {
+                    if (diff < 0) {
+                        sp.style.left = "0px";
+                    }
+                    if (diff > totalWidth) {
+                        sp.style.left = totalWidth + "px";
+                    }
+
+                }
+                else if (diff >= 0 && diff <= totalWidth) {
+                    var divx = (diff) + "px";
+                    sp.style.left = divx;
+                    //获取时间范围
+
+                    var dateCur = $("#date").val();
+
+                    var millicends = myTable.getTimeByPosition(e.clientX + 1, tbLeft);
+                    var time1 = myTable.getDate(dateCur, 0);
+                    time1.setMilliseconds(millicends);
+                    var time2 = myTable.getDate(dateCur, 8);
+                    time2.setMilliseconds(millicends);
+                    var time3 = myTable.getDate(dateCur, 16);
+                    time3.setMilliseconds(millicends);
+
+
+
+                    date1.innerHTML = DateFormat(time1, "HH:mm");
+                    date2.innerHTML = DateFormat(time2, "HH:mm");
+                    date3.innerHTML = DateFormat(time3, "HH:mm");
+                    var statusArr1 = myTable.getStatusByDate(time1.getTime());
+                    status1.innerHTML = myTable.getStatusMsg(statusArr1.status);
+                    bjMsg1.innerHTML = statusArr1.warningStaus;
+
+                    var statusArr2 = myTable.getStatusByDate(time2.getTime());
+                    status2.innerHTML = myTable.getStatusMsg(statusArr2.status);
+                    bjMsg2.innerHTML = statusArr2.warningStaus;
+
+                    var statusArr3 = myTable.getStatusByDate(time3.getTime());
+                    status3.innerHTML = myTable.getStatusMsg(statusArr3.status);
+                    bjMsg3.innerHTML = statusArr3.warningStaus;
+                }
+
+            },
+            getStatusByDate: function (curdate) {
+                if (this.data != null && this.data != undefined) {
+                    var pointData = this.data.data;
+                    var waringData = this.data.waringData;
+                    var beforeStatus = this.data.beforeStatus;
+                    var date = $("#date").val();
+                    var oldTime = this.getDate(date, 0).getTime();
+                    resutStatus = "";
+                    //根据传感器时间找出报警状态和传感器状态
+                    for (var i = 0; i < pointData.length; i++) {
+                        //判断时间在哪个时间范围
+                        var time = pointData[i].time;
+                        if (curdate < time && curdate >= oldTime) {
+                            resutStatus = beforeStatus;
+                        }
+                        oldTime = time;
+                        beforeStatus = pointData[i].status;
+                    }
+
+                    //获取报警的状态
+                    var waringStatus = "正常";
+                    if (waringData) {
+                        for (var i = 0; i < waringData.length; i++) {
+                            var lstart = waringData[i].lstart;
+                            var lend = waringData[i].lend;
+                            var status = waringData[i].status;
+                            if (date >= lstart && date <= lend) {
+                                waringStatus = status;
+                            }
+                        }
+                    }
+                    return { status: resutStatus, warningStaus: waringStatus };
+
+                }
+            },
+            getStatusMsg: function (status, type) {
+                if (status == 0) {
+                    return "停";
+                }
+                else if (status == 1) {
+                    return "开";
+                }
+                else if (status == -1) {
+                    return "未知";
+                }
+
+
+            },
+            removeAllChilden: function (ele) {
+
+                var childrenNodes = ele.children;
+                if (childrenNodes) {
+                    for (var index = 0; index < childrenNodes.length;) {
+                        //childrenNodes[index].innerHTML = "";
+                        if (childrenNodes[index].nodeName == "DIV") {
+                            try {
+                                ele.removeChild(childrenNodes[index]);
+                            }
+                            catch (ex) {
+                                // ele.removeChild(childrenNodes[index].parentNode);
+                            }
+                        }
+                    }
+                }
+            }
+
+        };
+
+
+        window.onload = function () {
+            myTable.getData();
+        }
+
+
+
+
+    </script>
+</head>
+
+<body>
+    <table border="0" cellpadding="0" cellspacing="0" style=" width:90% ;margin:10px auto auto auto;">
+        <tr>
+            <td colspan="2">
+                <table id="tbPanel" cellpadding="0" cellspacing="0">
+                    <tr>
+                        <td colspan="7">
+                            <div style="margin: 0 auto; width: 300px;">
+                                <input type="button" class="button white" style=" height:22px;" value="<<"
+                                    onclick="myTable.getData(-1)" />
+                                <input type="text" id="date" class="Wdate" style="width: 200px"
+                                    onfocus="WdatePicker({errDealMode:1,dateFmt:'yyyy/MM/dd',onpicked:function(){}})" />
+                                <input type="button" class="button white" style=" height:22px;" value=">>"
+                                    onclick="myTable.getData(1)" />
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="7" style="height: 30px;">
+                            <b id="title" style='font-size: 18px; color: #346CDE;'>
+                            </b>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 150px;">
+                            <span style="color: Blue; border-style: none;">测点状态:</span>
+                        </td>
+                        <td>
+                            <span id="date1">01:17 </span>
+                        </td>
+                        <td>
+                            <span id="status1">开</span>
+                        </td>
+                        <td>
+                            <span id="date2">03:17 </span>
+                        </td>
+                        <td>
+                            <span id="status2">开</span>
+                        </td>
+                        <td>
+                            <span id="date3">16:17 </span>
+                        </td>
+                        <td>
+                            <span id="status3">开</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <span style="color: Blue; border-style: none;">报警、断电、馈电信息:</span>
+                        </td>
+                        <td>
+                            <span id="bjMsg1">正常</span>
+                        </td>
+                        <td>
+                        </td>
+                        <td>
+                            <span id="bjMsg2">正常</span>
+                        </td>
+                        <td>
+                        </td>
+                        <td>
+                            <span id="bjMsg3">正常</span>
+                        </td>
+                        <td>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td style="width: 70px;">
+                <table id="tbLeft" border="0" cellpadding="0" cellspacing="0" style="width: 70px; ">
+                    <tr>
+                        <td style="width: 70px;">
+                            00-07点
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 70px;">
+                            08-15点
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="width: 70px;">
+                            16-23点
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            <td style="width:100%-70px;">
+                <div style="position: relative; width:  99.99%;">
+                    <table id="tbContainer" style="cursor: none;" border="0" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td>
+                                0点
+                            </td>
+                            <td>
+                                1点
+                            </td>
+                            <td>
+                                2点
+                            </td>
+                            <td>
+                                3点
+                            </td>
+                            <td>
+                                4 点
+                            </td>
+                            <td>
+                                5点
+                            </td>
+                            <td>
+                                6点
+                            </td>
+                            <td>
+                                7 点
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                8 点
+                            </td>
+                            <td>
+                                9点
+                            </td>
+                            <td>
+                                10 点
+                            </td>
+                            <td>
+                                11 点
+                            </td>
+                            <td>
+                                12 点
+                            </td>
+                            <td>
+                                13 点
+                            </td>
+                            <td>
+                                14 点
+                            </td>
+                            <td>
+                                15 点
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                16点
+                            </td>
+                            <td>
+                                17 点
+                            </td>
+                            <td>
+                                18 点
+                            </td>
+                            <td>
+                                19 点
+                            </td>
+                            <td>
+                                20 点
+                            </td>
+                            <td>
+                                21 点
+                            </td>
+                            <td>
+                                22 点
+                            </td>
+                            <td>
+                                23 点
+                            </td>
+                        </tr>
+                    </table>
+                    <div id="timeLine1" style="height: 20px; cursor: none; position: absolute; top: 1px;
+                            left: 0px; width: 99.99%; float: left; ">
+                    </div>
+                    <div id="timeLine2" style="height: 20px; cursor: none; position: absolute; top: 41px;
+                            left: 0px; width:  99.99%; float: left;">
+                    </div>
+                    <div id="timeLine3" style="height: 20px; cursor: none; position: absolute; top: 81px;
+                            left: 0px; width:  99.99%; float: left;">
+                    </div>
+                    <div id="split" style="cursor: pointer; position: absolute; height: 100%; width: 1px;
+                            top: 0px; left: 0px; background-color: Blue; z-index: 100;">
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+
+</body>
+
+</html>
